@@ -12,3 +12,4 @@
 /Users/johnyoung/Desktop/C# Program/W37MiniProject/W37MiniProject/obj/Debug/net10.0/W37MiniProject.pdb
 /Users/johnyoung/Desktop/C# Program/W37MiniProject/W37MiniProject/obj/Debug/net10.0/W37MiniProject.genruntimeconfig.cache
 /Users/johnyoung/Desktop/C# Program/W37MiniProject/W37MiniProject/obj/Debug/net10.0/ref/W37MiniProject.dll
+/Users/johnyoung/Desktop/C# Program/W37MiniProject/W37MiniProject/obj/Debug/net10.0/W37MiniProject.sourcelink.json
