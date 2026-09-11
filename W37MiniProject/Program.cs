@@ -1,12 +1,13 @@
-﻿// Level 2
-// Add a class for ProductManager
-// Sort products from lowest to highest price
-// Use methods for AddProduct(), ShowProducts() and CalculateTotal()
+﻿// Product list management system
+// Level 3
+// Add proper error handling for invalid inputs 
+// Prevent entry of invalid prices
+// Allow users to continue adding products after showing the list
+//Use LINQ
 
 
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using System.Linq;
 
 namespace ProductManagementSystem
@@ -17,7 +18,6 @@ namespace ProductManagementSystem
         public string Category { get; set; }
         public string Name { get; set; }
         public decimal Price { get; set; }
-
 
         public Product(string category, string name, decimal price)
         {
@@ -31,24 +31,29 @@ namespace ProductManagementSystem
     public class ProductManager
     {
         private readonly List<Product> _products = new List<Product>();
-        private readonly CultureInfo _culture = CultureInfo.InvariantCulture;
 
         //Method to add products to the list dynamically
         public void AddProduct(Product product)
         {
+            if (product == null)
+            {
+                throw new ArgumentNullException(nameof(product), "Product cannot be null.");
+            }
+
             _products.Add(product);
-        }    
-    
+        }
+
+        // Method to calculate the total value of all products
         public decimal CalculateTotal()
         {
             return _products.Sum(p => p.Price);
         }
 
-        //Method to display products in a formatted table, sorted by lowest to highest price, 
-        // and show the total amount
+        // Method to display products in a formatted table, sorted by lowest to highest price,
+        //  and show the total amount
         public void ShowProducts()
         {
- 
+
             if (_products.Count == 0)
             {
                 Console.WriteLine("No products were entered.");
@@ -56,12 +61,13 @@ namespace ProductManagementSystem
             }
 
             Console.WriteLine(new string('-', 60));
+
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{"Category",-20} {"Name",-25} {"Price",12}");
             Console.ResetColor();
+            
 
-
-            // Sort from lowest to highest price
+            // Sorted from lowest to highest price
             var sortedProducts = _products.OrderBy(p => p.Price);
 
             foreach (var item in sortedProducts)
@@ -70,71 +76,81 @@ namespace ProductManagementSystem
             }
 
             decimal totalAmount = CalculateTotal();
-            Console.WriteLine(new string('-', 60));
+
             // Aligned under the Name column
-            Console.WriteLine($"{"",-20} {"Total Amount:",-25} {totalAmount,12:N2}");
+            Console.WriteLine($"\n{"",-20} {"Total Amount:",-25} {totalAmount,12:N2}");
+            Console.WriteLine(new string('-', 60));
         }
     }
+
     class Program
     {
-   
         static void Main(string[] args)
         {
             ProductManager manager = new ProductManager();
 
+            //Clear the console at the start of the program
             Console.Clear();
-            Console.WriteLine("To enter a new product - follow the steps | To quit - enter: 'Q'\n");
 
+            // Main loop to enter product details and display the list
             while (true)
             {
-                // 1. Product Category
-                string category = ReadInput("Enter a Category: ", out bool quitCategory);
-                if (quitCategory) break;
+                Console.WriteLine("\nTo enter a new product - follow the steps | To quit - enter: 'Q'\n");
 
-                // 2. Product Name
-                string name = ReadInput("Enter Product Name: ", out bool quitName);
-                if (quitName) break;
+                bool addedAnyThisRound = false;
 
-                // 3. Product Price
-                decimal price = ReadValidPrice("Enter Product Price: ");
+                while (true)
+                {
+                    Console.Write("Enter a Category: ");
+                    string? category = Console.ReadLine()?.Trim();
 
-                // Add product via the manager
-                manager.AddProduct(new Product(category, name, price));
+                    if (string.Equals(category, "q", StringComparison.OrdinalIgnoreCase))
+                    {
+                        // If 'q' was entered immediately without adding new items, exit the whole program
+                        if (!addedAnyThisRound)
+                        {
+                            return;
+                        }
 
-                Console.ForegroundColor = ConsoleColor.Green;
-                Console.WriteLine("Product added successfully!\n");
-                Console.ResetColor();
+                        // Otherwise, break to show the updated table
+                        break;
+                    }
+
+                    if (string.IsNullOrWhiteSpace(category))
+                    {
+                        DisplayError("Category cannot be empty. Please try again.\n");
+                        continue;
+                    }
+
+                    string name = ReadNonEmptyString("Enter Product Name: ");
+                    decimal price = ReadValidPrice("Enter Product Price: ");
+
+                    manager.AddProduct(new Product(category, name, price));
+                    addedAnyThisRound = true;
+
+                    Console.ForegroundColor = ConsoleColor.Green;
+                    Console.WriteLine("Product added successfully!\n");
+                    Console.ResetColor();
+                }
+
+                // Show the current product list and total amount after each round of entries
+                manager.ShowProducts();
             }
-
-            // Display all entered products
-            manager.ShowProducts();
-
-            Console.WriteLine("\nPress any key to exit...");
-            Console.ReadKey();
         }
 
-        private static string ReadInput(string prompt, out bool isQuit)
+        private static string ReadNonEmptyString(string prompt)
         {
-            isQuit = false;
             while (true)
             {
                 Console.Write(prompt);
                 string? input = Console.ReadLine()?.Trim();
-
-                if (string.Equals(input, "q", StringComparison.OrdinalIgnoreCase))
-                {
-                    isQuit = true;
-                    return string.Empty;
-                }
 
                 if (!string.IsNullOrWhiteSpace(input))
                 {
                     return input;
                 }
 
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Input cannot be empty. Please try again.");
-                Console.ResetColor();
+                DisplayError("Input cannot be empty. Please try again.");
             }
         }
 
@@ -145,16 +161,45 @@ namespace ProductManagementSystem
                 Console.Write(prompt);
                 string? input = Console.ReadLine()?.Trim();
 
-                // Ensure correct parsing of decimal numbers
-                if (decimal.TryParse(input, out decimal price) && price >= 0)
+                if (string.IsNullOrWhiteSpace(input))
                 {
-                    return price;
+                    DisplayError("Price cannot be empty. Please try again.");
+                    continue;
                 }
 
-                Console.ForegroundColor = ConsoleColor.Red;
-                Console.WriteLine("Invalid price. Please enter a valid positive number.");
-                Console.ResetColor();
+                string normalizedInput = input.Replace(',', '.');
+
+                bool isValid = decimal.TryParse(input, out decimal price) ||
+                               decimal.TryParse(normalizedInput, System.Globalization.NumberStyles.Number,
+                                                System.Globalization.CultureInfo.InvariantCulture, out price);
+
+                if (!isValid)
+                {
+                    DisplayError("Invalid price format. Enter numeric values only (e.g., 29.99).");
+                    continue;
+                }
+
+                if (price < 0)
+                {
+                    DisplayError("Price cannot be negative. Please enter a value >= 0.00.");
+                    continue;
+                }
+
+                if (price > 1_000_000_000m)
+                {
+                    DisplayError("Price is too large. Please enter a realistic amount.");
+                    continue;
+                }
+
+                return price;
             }
+        }
+
+        private static void DisplayError(string message)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(message);
+            Console.ResetColor();
         }
     }
 }
