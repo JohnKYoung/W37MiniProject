@@ -1,18 +1,16 @@
 ﻿// Product list management system
-// Level 3
-// Add proper error handling for invalid inputs 
-// Prevent entry of invalid prices
-// Allow users to continue adding products after showing the list
-//Use LINQ
+// Level 4
+// - Allow users to search for products by name or category
+// - Highlight the searched product or category in the displayed table
 
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 
 namespace ProductManagementSystem
 {
-    // Class representing a product
     public class Product
     {
         public string Category { get; set; }
@@ -27,93 +25,118 @@ namespace ProductManagementSystem
         }
     }
 
-    // Class ProductManager - handles the collection, sorting, display, and calculations for products
     public class ProductManager
     {
         private readonly List<Product> _products = new List<Product>();
 
-        //Method to add products to the list dynamically
         public void AddProduct(Product product)
         {
             if (product == null)
-            {
                 throw new ArgumentNullException(nameof(product), "Product cannot be null.");
-            }
 
             _products.Add(product);
         }
 
-        // Method to calculate the total value of all products
         public decimal CalculateTotal()
         {
             return _products.Sum(p => p.Price);
         }
 
-        // Method to display products in a formatted table, sorted by lowest to highest price,
-        //  and show the total amount
-        public void ShowProducts()
+        public void ShowProducts(string? filter = null)
         {
-
-            if (_products.Count == 0)
+            // 1. If searching, check for matching products first
+            if (!string.IsNullOrWhiteSpace(filter))
             {
-                Console.WriteLine("No products were entered.");
+                bool hasMatches = _products.Any(p =>
+                    p.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                    p.Category.Contains(filter, StringComparison.OrdinalIgnoreCase));
+
+                if (!hasMatches)
+                {
+                    Console.ForegroundColor = ConsoleColor.Red;
+                    Console.WriteLine("\nNo products were found.");
+                    Console.ResetColor();
+                    return;
+                }
+            }
+            // 2. If not searching and inventory is completely empty
+            else if (!_products.Any())
+            {
+                Console.WriteLine("\nNo products were entered.");
                 return;
             }
 
             Console.WriteLine(new string('-', 60));
-
             Console.ForegroundColor = ConsoleColor.Green;
             Console.WriteLine($"{"Category",-20} {"Name",-25} {"Price",12}");
             Console.ResetColor();
-            
 
-            // Sorted from lowest to highest price
+            // LINQ: Sort by price ascending
             var sortedProducts = _products.OrderBy(p => p.Price);
 
             foreach (var item in sortedProducts)
             {
+                bool isMatch = !string.IsNullOrWhiteSpace(filter) &&
+                               (item.Name.Contains(filter, StringComparison.OrdinalIgnoreCase) ||
+                                item.Category.Contains(filter, StringComparison.OrdinalIgnoreCase));
+
+                if (isMatch)
+                {
+                    Console.ForegroundColor = ConsoleColor.DarkYellow;
+                }
+
                 Console.WriteLine($"{item.Category,-20} {item.Name,-25} {item.Price,12:N2}");
+
+                if (isMatch)
+                {
+                    Console.ResetColor();
+                }
             }
 
+            // LINQ: Calculate grand total
             decimal totalAmount = CalculateTotal();
 
-            // Aligned under the Name column
-            Console.WriteLine($"\n{"",-20} {"Total Amount:",-25} {totalAmount,12:N2}");
+            Console.WriteLine(new string('-', 60));
+            Console.WriteLine($"{"",-20} {"Total Amount:",-25} {totalAmount,12:N2}");
             Console.WriteLine(new string('-', 60));
         }
     }
 
     class Program
     {
-        static void Main(string[] args)
+static void Main(string[] args)
         {
             ProductManager manager = new ProductManager();
-
-            //Clear the console at the start of the program
             Console.Clear();
 
-            // Main loop to enter product details and display the list
             while (true)
             {
-                Console.WriteLine("\nTo enter a new product - follow the steps | To quit - enter: 'Q'\n");
+                Console.WriteLine("\nTo enter a new product - follow the steps | To search - enter: 'S' | To quit - enter: 'Q'\n");
 
                 bool addedAnyThisRound = false;
+                bool exitedSearch = false;
 
                 while (true)
                 {
                     Console.Write("Enter a Category: ");
                     string? category = Console.ReadLine()?.Trim();
 
+                    // Quit logic
                     if (string.Equals(category, "q", StringComparison.OrdinalIgnoreCase))
                     {
-                        // If 'q' was entered immediately without adding new items, exit the whole program
                         if (!addedAnyThisRound)
                         {
-                            return;
+                            return; // Direct quit when requested right after table display
                         }
+                        break; // Break input round and show updated table
+                    }
 
-                        // Otherwise, break to show the updated table
-                        break;
+                    // Search logic
+                    if (string.Equals(category, "s", StringComparison.OrdinalIgnoreCase))
+                    {
+                        RunSearchLoop(manager);
+                        exitedSearch = true;
+                        break; // Break inner loop to return to outermost prompt
                     }
 
                     if (string.IsNullOrWhiteSpace(category))
@@ -133,8 +156,41 @@ namespace ProductManagementSystem
                     Console.ResetColor();
                 }
 
-                // Show the current product list and total amount after each round of entries
+                // If we exited search mode, loop back immediately to display the main prompt
+                if (exitedSearch)
+                {
+                    continue;
+                }
+
+                // Otherwise, display full sorted inventory and grand total
                 manager.ShowProducts();
+            }
+        }
+
+        // Handles recurring search queries until the user exits search mode
+        private static void RunSearchLoop(ProductManager manager)
+        {
+            Console.WriteLine("\n[SEARCH MODE - Type 'Q' to return to product entry]");
+
+            while (true)
+            {
+                Console.Write("Enter search term (Product Name or Category): ");
+                string? term = Console.ReadLine()?.Trim();
+
+                if (string.Equals(term, "q", StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.WriteLine("Exiting search mode...\n");
+                    break;
+                }
+
+                if (string.IsNullOrWhiteSpace(term))
+                {
+                    DisplayError("Search term cannot be empty. Please enter a value or 'Q' to quit.");
+                    continue;
+                }
+
+                manager.ShowProducts(term);
+                Console.WriteLine();
             }
         }
 
@@ -170,8 +226,8 @@ namespace ProductManagementSystem
                 string normalizedInput = input.Replace(',', '.');
 
                 bool isValid = decimal.TryParse(input, out decimal price) ||
-                               decimal.TryParse(normalizedInput, System.Globalization.NumberStyles.Number,
-                                                System.Globalization.CultureInfo.InvariantCulture, out price);
+                               decimal.TryParse(normalizedInput, NumberStyles.Number,
+                                                CultureInfo.InvariantCulture, out price);
 
                 if (!isValid)
                 {
