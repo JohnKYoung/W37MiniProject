@@ -23,3 +23,7 @@ Add proper error handling for invalid inputs
 Prevent entry of invalid prices
 Allow users to continue adding products after showing the list
 Use LINQ
+
+Level 4
+Allow users to search for products by name or category
+Highlight the searched product or category in the displayed table
